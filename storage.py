@@ -31,11 +31,12 @@ def save_rates_to_json(
     Исключения:
         OSError: при ошибке записи файла на диск.
     """
+    rates_list = list(rates)
     payload = {
         "source_date": source_date,
         "saved_at": datetime.now().isoformat(timespec="seconds"),
-        "count": len(list(rates)),
-        "rates": [r.to_dict() for r in rates],
+        "count": len(rates_list),
+        "rates": [r.to_dict() for r in rates_list],
     }
 
     path = Path(file_path)

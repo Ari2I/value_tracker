@@ -17,9 +17,14 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+.mypy_cache/
 
 # Локальные результаты работы скрипта (по желанию)
 # currency_rates.json
+
+# Переменные окружения и локальный кэш курсов
+.env
+.currency_tracker_cache.json
 
 # Системные файлы ОС
 .DS_Store

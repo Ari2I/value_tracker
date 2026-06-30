@@ -16,7 +16,10 @@
       можно вводить в любом регистре ("usd", "USD", "Доллар");
     * по клику на заголовок колонки таблицы сортировка по этой
       колонке циклически переключается: возрастание → убывание →
-      сортировка отменяется (возврат к порядку по умолчанию).
+      сортировка отменяется (возврат к порядку по умолчанию);
+    * если сервер недоступен, приложение пытается показать
+      последние сохранённые в кэше курсы с пометкой об их
+      устаревании, вместо пустой таблицы.
 """
 
 from __future__ import annotations
@@ -24,10 +27,12 @@ from __future__ import annotations
 import logging
 import threading
 import tkinter as tk
+from functools import partial
 from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional
 
 from api_client import CurrencyApiError, CurrencyRate, fetch_rates
+from cache import load_cache, save_cache
 from filters import SORT_KEY_LABELS, SORT_KEYS, filter_rates, sort_rates
 from storage import save_rates_to_json
 
@@ -66,6 +71,7 @@ class CurrencyApp(tk.Tk):
         self.all_rates: List[CurrencyRate] = []
         self.displayed_rates: List[CurrencyRate] = []
         self.source_date: Optional[str] = None
+        self.using_cache: bool = False
 
         # Флаг нужен, чтобы не запускать фильтрацию во время
         # программной инициализации переменных интерфейса.
@@ -159,7 +165,7 @@ class CurrencyApp(tk.Tk):
                 self.tree.heading(
                     col,
                     text=COLUMN_TITLES[col],
-                    command=lambda c=col: self._on_header_click(c),
+                    command=partial(self._on_header_click, col),
                 )
             else:
                 self.tree.heading(col, text=COLUMN_TITLES[col])
@@ -199,6 +205,8 @@ class CurrencyApp(tk.Tk):
             result = fetch_rates()
             self.all_rates = result["rates"]
             self.source_date = result["date"]
+            self.using_cache = False
+            save_cache(self.all_rates, self.source_date or "")
             self.after(0, self._on_fetch_success)
         except CurrencyApiError as exc:
             message = str(exc)
@@ -216,9 +224,32 @@ class CurrencyApp(tk.Tk):
         self.apply_filters()
 
     def _on_fetch_error(self, message: str) -> None:
-        self.status_label.config(text="Ошибка загрузки данных")
+        # Сервер недоступен — пробуем подставить последние известные
+        # курсы из локального кэша, чтобы приложение не оставалось
+        # с пустой таблицей.
+        cached = load_cache()
         self.update_button.config(state=tk.NORMAL)
-        messagebox.showerror("Ошибка", message)
+
+        if cached and cached["rates"]:
+            self.all_rates = cached["rates"]
+            self.source_date = cached["date"]
+            self.using_cache = True
+            self.status_label.config(
+                text=(
+                    f"Нет соединения с сервером. Показаны устаревшие "
+                    f"данные от {self.source_date}"
+                )
+            )
+            self.save_button.config(state=tk.NORMAL)
+            self.apply_filters()
+            messagebox.showwarning(
+                "Используется кэш",
+                f"{message}\n\nПоказаны последние сохранённые курсы "
+                f"(от {self.source_date}).",
+            )
+        else:
+            self.status_label.config(text="Ошибка загрузки данных")
+            messagebox.showerror("Ошибка", message)
 
     def _on_filters_changed(self, *_args) -> None:
         """Обработчик изменения любого из фильтров (вызывается trace)."""
