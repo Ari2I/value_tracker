@@ -13,7 +13,10 @@
     * все надписи и подсказки в интерфейсе фильтров — на русском
       языке;
     * текстовый фильтр по коду/названию валюты регистронезависим —
-      можно вводить в любом регистре ("usd", "USD", "Доллар").
+      можно вводить в любом регистре ("usd", "USD", "Доллар");
+    * по клику на заголовок колонки таблицы сортировка по этой
+      колонке циклически переключается: возрастание → убывание →
+      сортировка отменяется (возврат к порядку по умолчанию).
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional
 
 from api_client import CurrencyApiError, CurrencyRate, fetch_rates
-from filters import SORT_KEY_LABELS, filter_rates, sort_rates
+from filters import SORT_KEY_LABELS, SORT_KEYS, filter_rates, sort_rates
 from storage import save_rates_to_json
 
 logger = logging.getLogger(__name__)
@@ -46,6 +49,10 @@ SORT_LABELS = list(SORT_KEY_LABELS.values())
 # Обратное сопоставление "русская подпись" -> "внутренний ключ".
 LABEL_TO_SORT_KEY = {label: key for key, label in SORT_KEY_LABELS.items()}
 
+# Символы-стрелки для индикации текущей сортировки в заголовке колонки.
+ARROW_ASC = " ▲"
+ARROW_DESC = " ▼"
+
 
 class CurrencyApp(tk.Tk):
     """Главное окно приложения."""
@@ -65,6 +72,7 @@ class CurrencyApp(tk.Tk):
         self._ui_ready = False
 
         self._build_widgets()
+        self._update_header_arrows()
         self._ui_ready = True
 
         # Автоматическая загрузка курсов сразу при запуске приложения.
@@ -144,7 +152,17 @@ class CurrencyApp(tk.Tk):
             table_frame, columns=COLUMNS, show="headings"
         )
         for col in COLUMNS:
-            self.tree.heading(col, text=COLUMN_TITLES[col])
+            # Колонка "Номинал" не участвует в сортировке (нет
+            # соответствующего ключа в SORT_KEYS), поэтому клик по
+            # ней не назначается.
+            if col in SORT_KEYS:
+                self.tree.heading(
+                    col,
+                    text=COLUMN_TITLES[col],
+                    command=lambda c=col: self._on_header_click(c),
+                )
+            else:
+                self.tree.heading(col, text=COLUMN_TITLES[col])
             self.tree.column(col, width=110, anchor=tk.CENTER)
         self.tree.column("name", width=220, anchor=tk.W)
 
@@ -208,6 +226,50 @@ class CurrencyApp(tk.Tk):
             return
         self.apply_filters()
 
+    def _on_header_click(self, col: str) -> None:
+        """
+        Обрабатывает клик по заголовку колонки таблицы.
+
+        Сортировка по нажатой колонке циклически переключается между
+        тремя состояниями: по возрастанию -> по убыванию -> сортировка
+        отменяется (возврат к сортировке по умолчанию — по коду
+        валюты, по возрастанию). Состояние синхронизируется с
+        выпадающим списком «Сортировать по» и флажком «По убыванию».
+        """
+        label = SORT_KEY_LABELS[col]
+        current_key = LABEL_TO_SORT_KEY.get(self.sort_var.get())
+
+        if current_key != col:
+            # Колонка ещё не была выбрана для сортировки — сортируем
+            # по возрастанию.
+            self.sort_var.set(label)
+            self.desc_var.set(False)
+        elif not self.desc_var.get():
+            # Уже отсортировано по возрастанию — переключаем на
+            # убывание.
+            self.desc_var.set(True)
+        else:
+            # Уже отсортировано по убыванию — отменяем сортировку,
+            # возвращаемся к порядку по умолчанию.
+            self.sort_var.set(SORT_KEY_LABELS["code"])
+            self.desc_var.set(False)
+
+        self._update_header_arrows()
+        # apply_filters() вызовется автоматически через trace на
+        # sort_var/desc_var, но обновление стрелок выполняем сразу.
+
+    def _update_header_arrows(self) -> None:
+        """Обновляет стрелки-индикаторы сортировки в заголовках."""
+        current_key = LABEL_TO_SORT_KEY.get(self.sort_var.get())
+        descending = self.desc_var.get()
+        for col in COLUMNS:
+            if col not in SORT_KEYS:
+                continue
+            title = COLUMN_TITLES[col]
+            if col == current_key:
+                title += ARROW_DESC if descending else ARROW_ASC
+            self.tree.heading(col, text=title)
+
     def apply_filters(self) -> None:
         """Применяет фильтры и сортировку к загруженным данным."""
         if not self.all_rates:
@@ -239,6 +301,7 @@ class CurrencyApp(tk.Tk):
             return
 
         self.displayed_rates = sorted_rates
+        self._update_header_arrows()
         self._refresh_table()
 
     def _refresh_table(self) -> None:

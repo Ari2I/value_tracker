@@ -65,7 +65,7 @@ SORT_KEYS = {
 SORT_KEY_LABELS = {
     "code": "Код валюты",
     "name": "Название",
-    "value": "Курс",
+    "value": "Курс к рублю",
     "change": "Изменение",
     "change_percent": "Изменение, %",
 }
