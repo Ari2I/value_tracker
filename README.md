@@ -5,7 +5,7 @@
 фильтровать и сортировать данные через графический интерфейс или
 командную строку, а затем сохранять результат в JSON-файл.
 
-<img width="1613" height="834" alt="image" src="https://github.com/user-attachments/assets/458561b3-a5f1-4f3a-99e4-44e65165e463" />
+<img width="811" height="543" alt="Снимок экрана 2026-06-30 162255" src="https://github.com/user-attachments/assets/9326f6c6-21c7-48f1-8bb3-236b872b73d5" />
 
 
 ## Возможности
