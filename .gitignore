@@ -1,0 +1,26 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Кэш и скомпилированные файлы Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Файлы IDE (PyCharm)
+.idea/
+*.iml
+
+# Тестирование / покрытие
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Локальные результаты работы скрипта (по желанию)
+# currency_rates.json
+
+# Системные файлы ОС
+.DS_Store
+Thumbs.db
