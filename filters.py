@@ -18,6 +18,10 @@ def filter_rates(
     """
     Фильтрует список курсов валют по заданным критериям.
 
+    Поиск по коду/названию валюты регистронезависим: пользователь
+    может вводить значение в любом регистре (например, "usd", "USD"
+    или "UsD" — результат будет одинаковым).
+
     Аргументы:
         rates: исходный список курсов.
         code_substring: подстрока для поиска по буквенному коду
@@ -32,11 +36,12 @@ def filter_rates(
 
     if code_substring:
         needle = code_substring.strip().lower()
-        result = [
-            r
-            for r in result
-            if needle in r.char_code.lower() or needle in r.name.lower()
-        ]
+        if needle:
+            result = [
+                r
+                for r in result
+                if needle in r.char_code.lower() or needle in r.name.lower()
+            ]
 
     if min_value is not None:
         result = [r for r in result if r.value >= min_value]
@@ -53,6 +58,16 @@ SORT_KEYS = {
     "value": lambda r: r.value,
     "change": lambda r: r.change,
     "change_percent": lambda r: r.change_percent,
+}
+
+# Сопоставление внутренних ключей сортировки с их отображением
+# на русском языке для интерфейса.
+SORT_KEY_LABELS = {
+    "code": "Код валюты",
+    "name": "Название",
+    "value": "Курс",
+    "change": "Изменение",
+    "change_percent": "Изменение, %",
 }
 
 

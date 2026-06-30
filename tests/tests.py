@@ -2,7 +2,7 @@
 Базовые unit-тесты для модулей filters и storage.
 
 Запуск:
-    python -m unittest tests.py
+    python -m unittest tests.tests -v
 """
 
 import json
@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 from api_client import CurrencyRate
-from filters import filter_rates, sort_rates
+from filters import SORT_KEY_LABELS, filter_rates, sort_rates
 from storage import save_rates_to_json
 
 
@@ -24,11 +24,29 @@ def make_sample_rates():
 
 
 class FilterRatesTest(unittest.TestCase):
-    def test_filter_by_code(self):
+    def test_filter_by_code_lowercase(self):
         rates = make_sample_rates()
         result = filter_rates(rates, code_substring="usd")
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].char_code, "USD")
+
+    def test_filter_by_code_uppercase(self):
+        rates = make_sample_rates()
+        result = filter_rates(rates, code_substring="USD")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].char_code, "USD")
+
+    def test_filter_by_code_mixed_case(self):
+        rates = make_sample_rates()
+        result = filter_rates(rates, code_substring="UsD")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].char_code, "USD")
+
+    def test_filter_by_name_any_case(self):
+        rates = make_sample_rates()
+        result = filter_rates(rates, code_substring="ЕВРО")
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].char_code, "EUR")
 
     def test_filter_by_min_max(self):
         rates = make_sample_rates()
@@ -40,6 +58,11 @@ class FilterRatesTest(unittest.TestCase):
         rates = make_sample_rates()
         result = filter_rates(rates, code_substring="xyz")
         self.assertEqual(result, [])
+
+    def test_filter_empty_string_returns_all(self):
+        rates = make_sample_rates()
+        result = filter_rates(rates, code_substring="   ")
+        self.assertEqual(len(result), 3)
 
 
 class SortRatesTest(unittest.TestCase):
@@ -59,6 +82,11 @@ class SortRatesTest(unittest.TestCase):
         rates = make_sample_rates()
         with self.assertRaises(ValueError):
             sort_rates(rates, sort_by="unknown_key")
+
+    def test_sort_key_labels_match_sort_keys(self):
+        from filters import SORT_KEYS
+
+        self.assertEqual(set(SORT_KEY_LABELS.keys()), set(SORT_KEYS.keys()))
 
 
 class CurrencyRateCalculationsTest(unittest.TestCase):
